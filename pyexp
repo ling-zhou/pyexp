@@ -1863,6 +1863,7 @@ try:
     import logging as log, threading as thread
 except Exception, e:
     print ("import err: " + str(e))
+    sys.stdout.flush()
     os._exit(1)
 
 def time_diff_msec(start, end):
@@ -1880,10 +1881,12 @@ def render_red(str):
 
 def print_exit(fmt, *args):
     print(fmt % args)
+    sys.stdout.flush()
     os._exit(1)
 
 def print_red(fmt, *args):
     print (render_red(fmt % args))
+    sys.stdout.flush()
 
 def print_red_exit(fmt, *args):
     print_red(fmt, *args)
@@ -1891,6 +1894,7 @@ def print_red_exit(fmt, *args):
 
 def print_red_flash(fmt, *args):
     print (render_red_flash(fmt % args))
+    sys.stdout.flush()
 
 def print_red_flash_exit(fmt, *args):
     print_red_flash(fmt, *args)
@@ -1919,6 +1923,7 @@ common options:
     -P default port (optional, default: 36000) ************************* login port
     -s host-line(e.g. host[:user[:pwd[:port]]]) separator (optional, default: ':')
     -d print debug log
+    --proxy proxy_ip:proxy_port (http proxy, optional)
  
 notice:
     1. '-H' and '-h' can not be used at the same time.
@@ -1994,13 +1999,15 @@ EXP_PATTERNS = [
         # Are you sure you want to continue connecting (yes/no)?
         # Do you want to change the host key on disk (yes/no)?
         '\(yes/no\)?', # 3
-        '(?i)Welcome to ', # 4
+        '(?i)Last login', # 4
         '(?i)Authentication failed.', # 5
         '(?i)permission denied', # 6
         '(?i)connection closed by remote host', # 7
         #'\r\n', # 8
         ]
 
+# AUTH_OPTIONS = "-o 'RSAAuthentication=no' -o 'PubkeyAuthentication=no'"
+AUTH_OPTIONS = ""
 SIGNAL_SET = {
         signal.SIGHUP: "SIGHUP",
         signal.SIGINT: "SIGINT",
@@ -2020,17 +2027,16 @@ g_default_port = '36000'
 g_hostline_sep = ':'
 g_hostunits = [] # [{'host':'$ip', 'user':'$user', 'pwd':'$pwd', 'port':'$port'}, ...]
 g_reverse = False
-g_remote_copy = ''
+g_copy_cmd = ''
 g_source = ''
 g_destination = ''
-g_cmd = '' # command for ssh
-g_cmds = [] # commands for ssh
+g_ssh_cmd = '' # command for ssh
+g_ssh_cmds = [] # commands for ssh
 g_timeout = 5
+g_http_proxy = ''
 
 def signal_handler(signum, frame):
     print_red_exit("\nsignal '%s' caught. exiting...", SIGNAL_SET[signum])
-    os._exit(1)
-    # sys.exit(1) # 会导致打印异常信息
 
 def signal_register():
     signal.signal(signal.SIGHUP, signal_handler)
@@ -2069,7 +2075,7 @@ def parse_host_line(line): # line-fmt: host[:user[:pwd[:port]]]
     if unitsize < 3: hostunit.append('')
     if hostunit[2] == '': hostunit[2] = g_default_pwd
     if hostunit[2] == '':
-        print_red_exit("no password for host:%s,user:%s", hostunit[0], hostunit[1])
+        print_red_exit("no password for %s@%s", hostunit[1], hostunit[0])
 
     if unitsize < 4: hostunit.append('')
     if hostunit[3] == '': hostunit[3] = g_default_port
@@ -2080,13 +2086,13 @@ def parse_file_line(file, is_host_file=True):
     try: reader = open(file, 'r');
     except Exception, e: print_red_exit("open file(%s) failed: %s", file, e)
 
-    global g_hostunits, g_cmds
+    global g_hostunits, g_ssh_cmds
 
     for line in reader:
         if is_host_file:
             g_hostunits.append(parse_host_line(line.rstrip()))
         else:
-            g_cmds.append(line.rstrip())
+            g_ssh_cmds.append(line.rstrip())
     reader.close()
 
 def config_logger():
@@ -2097,15 +2103,15 @@ def config_logger():
 
 def parse_common_options():
     global g_hostunits, g_default_port, g_timeout, g_default_user, g_default_pwd
-    global g_action, g_optval_list, g_arg_list, g_optval_dict, g_hostline_sep
+    global g_action, g_optval_list, g_arg_list, g_optval_dict, g_hostline_sep, g_http_proxy
 
     try:
         if len(sys.argv) < 2:
-            print_red_exit("action(subcmd) needed, use '%s help' to get usage", PROG)
+            help_global()
 
         g_action = sys.argv[1]
         g_optval_list, g_arg_list = getopt.gnu_getopt(sys.argv[2:], \
-                'rdh:H:u:p:P:s:t:c:')
+                'rdh:H:u:p:P:s:t:c:', ['proxy='])
         g_optval_dict = dict(g_optval_list)
 
         config_logger()
@@ -2137,6 +2143,9 @@ def parse_common_options():
     if '-t' in g_optval_dict:
         g_timeout = int(g_optval_dict['-t'])
 
+    if '--proxy' in g_optval_dict:
+        g_http_proxy = g_optval_dict['--proxy']
+
     debug_common_options();
 
 def debug_getopt():
@@ -2154,39 +2163,49 @@ def debug_common_options():
         log.debug("g_default_port: %r", g_default_port)
         log.debug("g_hostline_sep: %r", g_hostline_sep)
         log.debug("g_hostunits: %r" % g_hostunits)
+        log.debug("g_http_proxy: %r" % g_http_proxy)
     except Exception, e:
         print_red_exit("debug_common_options exception: %s", e);
 
 def debug_remote_copy():
     try:
         log.debug("g_reverse: %r", g_reverse)
-        log.debug("g_remote_copy: %r", g_remote_copy)
+        log.debug("g_copy_cmd: %r", g_copy_cmd)
         log.debug("g_source: %r", g_source)
         log.debug("g_destination: %r", g_destination)
     except Exception, e:
         print_red_exit("debug_remote_copy exception: %s", e);
 
 def build_request(hostunit):
-    global g_remote_copy, g_reverse, g_source, g_destination
-
     host = hostunit['host']
     user = hostunit['user']
     port = hostunit['port']
 
-    if g_remote_copy != '':
+    if g_http_proxy != '':
+        proxy_cmd = "-o 'ProxyCommand nc -X CONNECT -x %s %s %s'" % (g_http_proxy, '%h', '%p')
+    else:
+        proxy_cmd = ''
+
+    if g_copy_cmd != '':
         if g_reverse:
             destination = g_destination
             if len(g_hostunits) > 1:
-                os.system("mkdir -p " + host)
-                destination = str(host)
-            request = g_remote_copy + ' -pqr ' + user + '@' + host + '#' \
-                    + port + ":" + g_source + ' ' + destination
+                destination += "/" + host
+                os.system("mkdir -p " + destination)
+
+            if g_copy_cmd == "scp":
+                request = 'scp -pqr %s %s -P%s %s@%s:%s %s'
+            else: # rsync
+                request = 'rsync -pqr -e "ssh -qt %s %s -p%s" %s@%s:%s %s'
+            request %= (proxy_cmd, AUTH_OPTIONS, port, user, host, g_source, destination)
         else:
-            request = g_remote_copy + ' -pqr ' + g_source + ' ' + user \
-                    + '@' + host + '#' + port + ":" + g_destination
+            if g_copy_cmd == "scp":
+                request = 'scp -pqr %s %s -P%s %s %s@%s:%s'
+            else: # rsync
+                request = 'rsync -pqr -e "ssh -qt %s %s -p%s" %s %s@%s:%s'
+            request %= (proxy_cmd, AUTH_OPTIONS, port, g_source, user, host, g_destination)
     else:
-        SSH_OPTS = " -q -t -o 'RSAAuthentication=no' -o 'PubkeyAuthentication=no' "
-        request = 'ssh' + SSH_OPTS + user + '@' + host + '#' + port + ' "' + g_cmd + '"'
+        request = 'ssh -qt %s %s %s@%s -p%s "%s"' % (proxy_cmd, AUTH_OPTIONS, user, host, port, g_ssh_cmd)
 
     log.debug("request: %s" % request)
     return request
@@ -2205,8 +2224,8 @@ def host_line_prompt(hostunit):
 # exec ssh, scp, rsync
 def pyexp_exec(hostunit):
     try:
-        log.debug("g_cmd: %r", g_cmd)
-        log.debug("g_cmds: %r", g_cmds)
+        log.debug("g_ssh_cmd: %r", g_ssh_cmd)
+        log.debug("g_ssh_cmds: %r", g_ssh_cmds)
         child, iseof = events_match(hostunit)
         print_result(hostunit, child, iseof)
         child.close()
@@ -2230,24 +2249,22 @@ def pyexp_login():
             print_red("%s got exception: %s", hostunit['user'] + '@' + hostunit['host'], e)
 
 def pyexp_ssh():
-    global g_cmd, g_cmds
-    global g_optval_list, g_arg_list, g_optval_dict
+    global g_ssh_cmd, g_arg_list
 
     if len(g_arg_list) > 0 and '-c' in g_optval_dict:
         print_red_exit("'-c' and 'cmd' can not be used at the same time")
     if len(g_arg_list) > 0:
-        g_cmd = g_arg_list[0].strip()
+        g_ssh_cmd = g_arg_list[0].strip()
     elif '-c' in g_optval_dict:
         parse_file_line(g_optval_dict['-c'], False)
 
-    if g_cmd != '' or len(g_cmds) > 0:
+    if g_ssh_cmd != '' or len(g_ssh_cmds) > 0:
         task_dispath(pyexp_exec)
     else:
         pyexp_login()
 
 def pyexp_remote_copy():
-    global g_optval_list, g_arg_list, g_optval_dict
-    global g_reverse, g_source, g_destination
+    global g_arg_list, g_reverse, g_source, g_destination
 
     num_args = len(g_arg_list)
     if num_args < 2: print_red_exit("source and destination needed")
@@ -2268,13 +2285,13 @@ def pyexp_remote_copy():
     task_dispath(pyexp_exec)
 
 def pyexp_scp():
-    global g_remote_copy
-    g_remote_copy = 'scp'
+    global g_copy_cmd # 对全局变量进行写操作之前需要用global声明，读操作不需要
+    g_copy_cmd = 'scp'
     pyexp_remote_copy()
 
 def pyexp_rsync():
-    global g_remote_copy
-    g_remote_copy = 'rsync'
+    global g_copy_cmd # 对全局变量进行写操作之前需要用global声明，读操作不需要
+    g_copy_cmd = 'rsync'
     pyexp_remote_copy()
 
 def pyexp_run():
@@ -2355,7 +2372,7 @@ def events_match(hostunit):
             # 发送过密码，而且有数据过来，认为是正常的响应
             if pwdsent and child.before.strip() != '': break
             tocnt = tocnt + 1
-            if g_remote_copy == '' and tocnt >= 10:
+            if g_copy_cmd == '' and tocnt >= 10:
                 raise ExceptionPexpect("%s: timeout exceeded" % title);
         elif index == 2: # '(?i)Password:'
             if not pwdsent:
@@ -2367,12 +2384,12 @@ def events_match(hostunit):
         elif index == 3: # '\(yes/no\)?'
             log.debug("%s: send yes", title);
             child.sendline('yes')
-        elif index == 4: # '(?i)Welcome to '
+        elif index == 4: # '(?i)Last login'
             log.debug("%s: Authentication successful", title);
             # child.readline()
-            if len(g_cmds) > 0:
+            if len(g_ssh_cmds) > 0:
                 child.sendline(SET_PROMPT)
-                for line in g_cmds:
+                for line in g_ssh_cmds:
                     child.sendline(line)
                 child.sendline('exit')
             break
@@ -2404,7 +2421,6 @@ class pyexp_thread(thread.Thread):
         apply(self.func, self.args)
 
 def task_dispath(func):
-    global g_hostunits
     threads = []
     nloops = range(len(g_hostunits))
 
