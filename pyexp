@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: UTF-8 -*- 
+#-*- coding: UTF-8 -*-
 
 """Pexpect is a Python module for spawning child applications and controlling
 them automatically. Pexpect can be used for automating interactive applications
@@ -343,12 +343,12 @@ class spawn (object):
         the input from the child and output sent to the child. Sometimes you
         don't want to see everything you write to the child. You only want to
         log what the child sends back. For example::
-        
+
             child = pexpect.spawn('some_command')
             child.logfile_read = sys.stdout
 
         To separately log output sent to the child use logfile_send::
-        
+
             self.logfile_send = fout
 
         The delaybeforesend helps overcome a weird behavior that many users
@@ -715,7 +715,7 @@ class spawn (object):
         if timeout == -1:
             timeout = self.timeout
         if timeout is not None:
-            end_time = time.time() + timeout 
+            end_time = time.time() + timeout
         while True:
             if not self.getecho():
                 return True
@@ -1366,7 +1366,7 @@ class spawn (object):
         if timeout == -1:
             timeout = self.timeout
         if timeout is not None:
-            end_time = time.time() + timeout 
+            end_time = time.time() + timeout
         if searchwindowsize == -1:
             searchwindowsize = self.searchwindowsize
 
@@ -1664,7 +1664,7 @@ class searcher_string (object):
         # rescanning until we've read three more bytes.
         #
         # Sadly, I don't know enough about this interesting topic. /grahn
-        
+
         for index, s in self._strings:
             if searchwindowsize is None:
                 # the match, if any, can only be in the fresh data,
@@ -1743,7 +1743,7 @@ class searcher_re (object):
         'buffer' which have not been searched before.
 
         See class spawn for the 'searchwindowsize' argument.
-        
+
         If there is a match this returns the index of that string, and sets
         'start', 'end' and 'match'. Otherwise, returns -1."""
 
@@ -1856,7 +1856,7 @@ def split_command_line(command_line):
 # vi:ts=4:sw=4:expandtab:ft=python:
 
 # @brief python expect 工具
-# @author 周龄(master@manpage.cn)
+# @author Ling Zhou(周龄) <zhou.0@foxmail.com>
 
 try:
     import getopt, commands
@@ -1905,7 +1905,7 @@ def set_session_title(str):
 
 def help_global():
     help = """\
-python expect tool(powered by zhou ling) on the basis of pexpect
+python expect tool(powered by Ling Zhou) on the basis of pexpect
 usage: %s <action> [options] [cmd] [args]
 use '%s {help | h} <action>' to print help on a specific action.
 
@@ -1916,28 +1916,30 @@ actions:
     ssh
 
 common options:
-    -H hosts-file (line-fmt: host[:user[:pwd[:port]]], never with -h) ** login host(s)
+    -H hosts-file(line-fmt: host[:user[:pwd[:port]]], never with -h) *** login host(s)
     -h host[:user[:pwd[:port]]] (never with -H) ************************ login host
-    -u default user (optional, default: user_00) *********************** login user
-    -p default password (optional) ************************************* login pwd
-    -P default port (optional, default: 36000) ************************* login port
+    -u default-user (optional, default: root) ************************** login user
+    -p default-password (optional) ************************************* login pwd
+    -P default-port (optional, default: 22) **************************** login port
     -s host-line(e.g. host[:user[:pwd[:port]]]) separator (optional, default: ':')
     -d print debug log
+    --cmark comment(e.g. // my comment) mark (single line, optional, default: '//')
     --proxy proxy_ip:proxy_port (http proxy, optional)
- 
+
 notice:
     1. '-H' and '-h' can not be used at the same time.
     2. USER specified by -u can be overridden by USER in host[:USER[:pwd[:port]]]
     3. PASSWORD specified by -p can be overridden by PWD in host[:user[:PWD[:port]]]
     4. PORT specified by -P can be overridden by PORT in host[:user[:pwd[:PORT]]]
-    5. a separator(default: ':') is needed if the member in middle is not specified,
-       for example: host::pwd, In this case, user need be specified by -u
+    5. a host-line-separator(default: ':') is needed if the member in between is not specified,
+       for example: host::pwd, In this case, USER need be specified by -u.
+    6. a special comment-mark(default: '//') is needed if it conflicts with USER or PASSWORD.
 
 pyexp is a python expect tool, it can be used to:
     1. scp/rsync file/dir(s) from local to remote, or in reverse.
     2. ssh into host(s)(and execute command(s)).
 
-report bug(s) to <master@manpage.cn>.
+report bug(s) to <zhou.0@foxmail.com>.
 """
     print_exit(help, PROG, PROG)
 
@@ -1978,8 +1980,8 @@ usage: %s ssh [options] [-c cmdfile] [cmd]
 use '%s {help | h}' to print help about 'options'
 
 notice that '-c cmdfile' and 'cmd' can not be used at the same time.
-if neither '-c cmdfile' nor 'cmd' is used, then just login into 
-host(s) specified by '-h/-H'. else login into host(s) specified by 
+if neither '-c cmdfile' nor 'cmd' is used, then just login into
+host(s) specified by '-h/-H'. else login into host(s) specified by
 '-h/-H', execute command(s) specified by '-c cmdfile' or 'cmd' and exit
 """
     print_exit(help, PROG, PROG)
@@ -1987,7 +1989,7 @@ host(s) specified by '-h/-H'. else login into host(s) specified by
 ####################### 大写的全局变量为常量，小写的为变量 ########################
 
 # log config(NOTSET DEBUG INFO WARNING ERROR CRITICAL)
-LOG_FORMAT = '%(asctime)s %(levelname)5s %(filename)s:%(lineno)d %(message)s'
+LOG_FORMAT = '%(asctime)s %(levelname)5s %(filename)s:%(lineno)d:%(funcName)s %(message)s'
 MUTEX = thread.Lock()                  # lock init
 PROG = os.path.basename(sys.argv[0])   # program name
 PYEXP_PROMPT = r'pyexp\>\ '            # prompt of diy version
@@ -2021,11 +2023,16 @@ g_action = 'ssh'
 g_optval_dict = {}
 g_optval_list = []
 g_arg_list = []
-g_default_user = 'user_00'
-g_default_pwd = ''
-g_default_port = '36000'
+g_default_user = 'root'
+g_default_pwd = 'x'
+g_default_port = '22'
 g_hostline_sep = ':'
-g_hostunits = [] # [{'host':'$ip', 'user':'$user', 'pwd':'$pwd', 'port':'$port'}, ...]
+g_comment_mark = '//'
+'''[
+    {'host': '$host', 'user': '$user', 'pwd': '$pwd', 'port': '$port', 'comment': '$comment'},
+    ...
+]'''
+g_hostunits = []
 g_reverse = False
 g_copy_cmd = ''
 g_source = ''
@@ -2062,36 +2069,46 @@ def help_dispatch():
         help_global()
 
 def parse_host_line(line): # line-fmt: host[:user[:pwd[:port]]]
-    # hostunit = ''.join(line.split()).split(g_hostline_sep)
-    hostunit = line.split(g_hostline_sep) # password may have SPACE
+    pair = line.split(g_comment_mark)
+
+    comment = ''
+    if len(pair) >= 2: comment = pair[1].strip()
+
+    pair[0] = pair[0].strip()
+    hostunit = pair[0].split(g_hostline_sep) # password may have SPACE
     unitsize = len(hostunit)
 
-    if unitsize < 1: print_red_exit("host line(%s) invalid", line)
+    if pair[0] == '' or unitsize < 1:
+        log.debug("empty host-line(%s) is ignored", line)
+        return
 
     if unitsize < 2: hostunit.append('')
     if hostunit[1] == '': hostunit[1] = g_default_user
-    if hostunit[1] == '': print_red_exit("no user for host:%s", hostunit[0])
+    if hostunit[1] == '': print_red_exit("no USER for %s", hostunit[0])
 
     if unitsize < 3: hostunit.append('')
     if hostunit[2] == '': hostunit[2] = g_default_pwd
-    if hostunit[2] == '':
-        print_red_exit("no password for %s@%s", hostunit[1], hostunit[0])
+    if hostunit[2] == '': print_red_exit("no PASSWORD for %s@%s", hostunit[1], hostunit[0])
 
     if unitsize < 4: hostunit.append('')
     if hostunit[3] == '': hostunit[3] = g_default_port
+    if hostunit[3] == '': print_red_exit("no PORT for %s@%s", hostunit[1], hostunit[0])
 
-    return {'host':hostunit[0],'user':hostunit[1],'pwd':hostunit[2],'port':hostunit[3]}
+    global g_hostunits
+    g_hostunits.append(
+                {'host': hostunit[0], 'user': hostunit[1], 'pwd': hostunit[2],
+                 'port': hostunit[3], 'comment': comment}
+            )
 
 def parse_file_line(file, is_host_file=True):
     try: reader = open(file, 'r');
     except Exception, e: print_red_exit("open file(%s) failed: %s", file, e)
 
-    global g_hostunits, g_ssh_cmds
-
     for line in reader:
         if is_host_file:
-            g_hostunits.append(parse_host_line(line.rstrip()))
+            parse_host_line(line)
         else:
+            global g_ssh_cmds
             g_ssh_cmds.append(line.rstrip())
     reader.close()
 
@@ -2102,17 +2119,21 @@ def config_logger():
         log.basicConfig(level=log.INFO, format=LOG_FORMAT)  # 只有第一次basicConfig生效
 
 def parse_common_options():
-    global g_hostunits, g_default_port, g_timeout, g_default_user, g_default_pwd
-    global g_action, g_optval_list, g_arg_list, g_optval_dict, g_hostline_sep, g_http_proxy
+    global g_action, g_default_port, g_timeout, g_default_user, g_default_pwd
+    global g_optval_list, g_arg_list, g_optval_dict, g_hostline_sep, g_comment_mark, g_http_proxy
 
     try:
-        if len(sys.argv) < 2:
+        if len(sys.argv) < 3:
             help_global()
 
-        g_action = sys.argv[1]
-        g_optval_list, g_arg_list = getopt.gnu_getopt(sys.argv[2:], \
-                'rdh:H:u:p:P:s:t:c:', ['proxy='])
+        g_optval_list, g_arg_list = getopt.gnu_getopt(sys.argv[1:],
+                                                      'rdh:H:u:p:P:s:t:c:', ['proxy=','cmark='])
         g_optval_dict = dict(g_optval_list)
+
+        if not g_arg_list:
+            help_global()
+        g_action = g_arg_list[0]
+        del g_arg_list[0]
 
         config_logger()
         debug_getopt()
@@ -2121,28 +2142,22 @@ def parse_common_options():
 
     if '-H' in g_optval_dict and '-h' in g_optval_dict:
         print_red_exit("'-H' and '-h' can not be used at the same time")
-
     if '-u' in g_optval_dict:
         g_default_user = g_optval_dict['-u']
-
     if '-p' in g_optval_dict:
         g_default_pwd = g_optval_dict['-p']
-
     if '-P' in g_optval_dict:
         g_default_port = g_optval_dict['-P']
-
     if '-s' in g_optval_dict:
         g_hostline_sep = g_optval_dict['-s']
-
+    if '--cmark' in g_optval_dict:
+        g_comment_mark = g_optval_dict['--cmark']
     if '-H' in g_optval_dict:
         parse_file_line(g_optval_dict['-H'], True)
-
     if '-h' in g_optval_dict:
-        g_hostunits.append(parse_host_line(g_optval_dict['-h']))
-
+        parse_host_line(g_optval_dict['-h'])
     if '-t' in g_optval_dict:
         g_timeout = int(g_optval_dict['-t'])
-
     if '--proxy' in g_optval_dict:
         g_http_proxy = g_optval_dict['--proxy']
 
@@ -2163,6 +2178,7 @@ def debug_common_options():
         log.debug("g_default_port: %r", g_default_port)
         log.debug("g_hostline_sep: %r", g_hostline_sep)
         log.debug("g_hostunits: %r" % g_hostunits)
+        log.debug("g_comment_mark: %r" % g_comment_mark)
         log.debug("g_http_proxy: %r" % g_http_proxy)
     except Exception, e:
         print_red_exit("debug_common_options exception: %s", e);
@@ -2205,7 +2221,8 @@ def build_request(hostunit):
                 request = 'rsync -pqr -e "ssh -qt %s %s -p%s" %s %s@%s:%s'
             request %= (proxy_cmd, AUTH_OPTIONS, port, g_source, user, host, g_destination)
     else:
-        request = 'ssh -qt %s %s %s@%s -p%s "%s"' % (proxy_cmd, AUTH_OPTIONS, user, host, port, g_ssh_cmd)
+        request = 'ssh -qt %s %s %s@%s -p%s "%s"' % \
+                (proxy_cmd, AUTH_OPTIONS, user, host, port, g_ssh_cmd)
 
     log.debug("request: %s" % request)
     return request
@@ -2217,7 +2234,7 @@ def host_line_prompt(hostunit):
         ncols = int(commands.getoutput('stty size').split()[1])
     except:
         ncols = 80
-    left = (ncols - titlelen) / 2  
+    left = (ncols - titlelen) / 2
     right = ncols - titlelen - left
     return '*'.ljust(left, '*') + ' ' + render_green(title) + ' ' + '*'.ljust(right, '*')
 
@@ -2249,7 +2266,7 @@ def pyexp_login():
             print_red("%s got exception: %s", hostunit['user'] + '@' + hostunit['host'], e)
 
 def pyexp_ssh():
-    global g_ssh_cmd, g_arg_list
+    global g_ssh_cmd
 
     if len(g_arg_list) > 0 and '-c' in g_optval_dict:
         print_red_exit("'-c' and 'cmd' can not be used at the same time")
@@ -2360,17 +2377,26 @@ def events_match(hostunit):
 
     while True:
         index = child.expect(EXP_PATTERNS, timeout=1)
-        log.debug("%s: index:<%d>, request:<%r>, before:<%r>, after:<%r>, child:<%r>",
-                title, index, request, child.before, child.after, child)
+        if len(child.before) > 64:
+            before = child.before[:32] + ' ...... ' + child.before[-32:]
+        else:
+            before = child.before
+        after = child.after
+
+        log.debug("%s: index=%d, request=%r, before=%r, after=%r, " \
+                  "tocnt=%d, pwdsent=%r, iseof=%r", title, index, request, before,
+                  after, tocnt, pwdsent, iseof)
         if index == 0: # EOF
-            log.debug("%s: got EOF, index=%d, before:<%r>, after:<%r>", 
-                    title, index, child.before, child.after)
-            ifeof = True
+            log.debug("%s: got EOF, index=%d, before=%r, after=%r",
+                    title, index, before, after)
+            iseof = True
             break
         elif index == 1: # TIMEOUT
-            log.debug("%s: timeout exceeded", title);
-            # 发送过密码，而且有数据过来，认为是正常的响应
-            if pwdsent and child.before.strip() != '': break
+            # 有数据过来，认为是正常的响应
+            log.debug("%s: timeout exceeded, tocnt=%d, datasize=%d",
+                      title, tocnt, len(child.before))
+            if child.before: break
+
             tocnt = tocnt + 1
             if g_copy_cmd == '' and tocnt >= 10:
                 raise ExceptionPexpect("%s: timeout exceeded" % title);
@@ -2394,12 +2420,12 @@ def events_match(hostunit):
                 child.sendline('exit')
             break
         #elif index == 8:
-            #log.debug("%s: got \\r\\n index=%d, before:<%r>, after:<%r>", 
-                    #title, index, child.before, child.after)
+            #log.debug("%s: got \\r\\n index=%d, before=%r, after=%r",
+                    #title, index, child.before, after)
             #break
         else:
-            log.error("%s: index=%d, before:<%r>, after:<%r>, child info:<%r>",
-                    title, index, child.before, child.after, child)
+            log.error("%s: index=%d, before=%r, after=%r, child info=%r",
+                    title, index, child.before, after, child)
             if index == 5: # '(?i)Authentication failed.'
                 raise ExceptionPexpect("%s: Authentication failed" % title)
             elif index == 6: # '(?i)permission denied'
