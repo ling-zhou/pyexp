@@ -1987,7 +1987,7 @@ def help_scp():
     help = """\
 usage: pyexp scp [-L|--to-local] [common-options] source(s) destination
 
-use 'pyexp help' to print help about 'common options
+use 'pyexp help' to print help about 'common options'
 
 without option '-L|--to-local':
     scp local source(s) to remote destination
