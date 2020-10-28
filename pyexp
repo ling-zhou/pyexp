@@ -1956,7 +1956,7 @@ attentions:
        # pyexp ... --comment-sep '!@#' ...
 
 pyexp is an automation tool based on ssh and Pexpect, it can be used to:
-    1. scp/rsync file/dir(s) from local to remote, or in reverse.
+    1. scp|rsync file|dir(s) from local to remote, or in reverse.
     2. ssh into host(s)(and execute command(s)).
 
 report bug(s) to <https://github.com/ling-zhou/pyexp>.
