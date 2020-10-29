@@ -1,10 +1,10 @@
-pyexp
+pe(Python Expect)
 =====
 ```
-$ pyexp
-usage: pyexp <action> [options] [command] [args]
+$ pe
+usage: pe <action> [options] [command] [args]
 
-use 'pyexp help <action>' to print help for a specific action
+use 'pe help <action>' to print help for a specific action
 
 actions:
     help (h)
@@ -44,12 +44,12 @@ attentions:
             in this case, default user will be used, and default user can be overridden by -u.
     6. user defined single-line-field-separator must be specified if password contains ';'.
        for example: '1.2.3.4_@_root_@_my:/passwd_@_22 // this is comment'
-       # pyexp ... --field-sep '_@_' ...
+       # pe ... --field-sep '_@_' ...
     7. user defined single-line-comment-separator must be specified if PASSWORD contains '//'.
        for example: '1.2.3.4:root:my//passwd:22 !@# this is comment'
-       # pyexp ... --comment-sep '!@#' ...
+       # pe ... --comment-sep '!@#' ...
 
-pyexp is an automation tool based on ssh and Pexpect, it can be used to:
+pe is an automation tool based on ssh and Pexpect, it can be used to:
     1. scp/rsync file/dir(s) from local to remote, or in reverse.
     2. ssh into host(s)(and execute command(s)).
 
