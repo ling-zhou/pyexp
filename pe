@@ -1908,9 +1908,9 @@ def set_session_title(str):
 
 def help_global():
     help = """\
-usage: pyexp <action> [options] [command] [args]
+usage: pe <action> [options] [command] [args]
 
-use 'pyexp help <action>' to print help for a specific action
+use 'pe help <action>' to print help for a specific action
 
 actions:
     help (h)
@@ -1950,12 +1950,12 @@ attentions:
             in this case, default user will be used, and default user can be overridden by -u.
     6. user defined single-line-field-separator must be specified if password contains ';'.
        for example: '1.2.3.4_@_root_@_my:/passwd_@_22 // this is comment'
-       # pyexp ... --field-sep '_@_' ...
+       # pe ... --field-sep '_@_' ...
     7. user defined single-line-comment-separator must be specified if PASSWORD contains '//'.
        for example: '1.2.3.4:root:my//passwd:22 !@# this is comment'
-       # pyexp ... --comment-sep '!@#' ...
+       # pe ... --comment-sep '!@#' ...
 
-pyexp is an automation tool based on ssh and Pexpect, it can be used to:
+pe is an automation tool based on ssh and Pexpect, it can be used to:
     1. scp|rsync file|dir(s) from local to remote, or in reverse.
     2. ssh into host(s)(and execute command(s)).
 
@@ -1965,15 +1965,15 @@ report bug(s) to <https://github.com/ling-zhou/pyexp>.
 
 def help_help():
     help = """\
-usage: pyexp help [action]
+usage: pe help [action]
 """
     print_exit(help)
 
 def help_ssh():
     help = """\
-usage: pyexp ssh [common-options] [-e|--exec exe_file | command]
+usage: pe ssh [common-options] [-e|--exec exe_file | command]
 
-use 'pyexp help' to print help about 'common options'
+use 'pe help' to print help about 'common options'
 
 notice that '-e|--exec exe_file' and 'command' can not be used together.
 if neither '-e|--exec exe_file' nor 'command' is used, then
@@ -1985,9 +1985,9 @@ else
 
 def help_scp():
     help = """\
-usage: pyexp scp [-L|--to-local] [common-options] source(s) destination
+usage: pe scp [-L|--to-local] [common-options] source(s) destination
 
-use 'pyexp help' to print help about 'common options'
+use 'pe help' to print help about 'common options'
 
 without option '-L|--to-local':
     scp local source(s) to remote destination
@@ -1998,9 +1998,9 @@ with option '-L|--to-local':
 
 def help_rsync():
     help = """\
-usage: pyexp rsync [-L|--to-local] [common-options] source(s) destination
+usage: pe rsync [-L|--to-local] [common-options] source(s) destination
 
-use 'pyexp help' to print help about 'common options'
+use 'pe help' to print help about 'common options'
 
 without option '-L|--to-local':
     rsync local source(s) to remote destination
@@ -2011,9 +2011,9 @@ with option '-L|--to-local':
 
 ####################### 大写的全局变量只读，小写的可写 #######################
 # log config(NOTSET DEBUG INFO WARNING ERROR CRITICAL)
-MUTEX = thread.Lock()                  # lock init
-PROG = os.path.basename(sys.argv[0])   # program name
-PYEXP_PROMPT = r'pyexp\>\ '            # prompt of diy version
+MUTEX = thread.Lock() # lock init
+PROG = os.path.basename(sys.argv[0]) # program name
+PYEXP_PROMPT = r'pe\>\ ' # prompt of diy version
 SET_PROMPT = r'export PS1=' + PYEXP_PROMPT # set diy prompt
 
 EXP_PATTERNS = [
