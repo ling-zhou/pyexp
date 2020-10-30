@@ -58,6 +58,7 @@ report bugs to <https://github.com/ling-zhou/pyexp>.
 ```
 
 ```
+$ pe example
 # log into host.
 $ pe -h 'host;user;passwd;port' ssh
 
