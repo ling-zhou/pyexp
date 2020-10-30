@@ -1906,7 +1906,7 @@ def print_red_flash_exit(fmt, *args):
 def set_session_title(str):
     print("\x1b];%s\a" % str)
 
-def help_global():
+def print_global_help():
     help = """\
 usage: pe <action> [options] [command] [args]
 
@@ -1917,6 +1917,7 @@ actions:
     ssh
     scp
     rsync (rs)
+    example (ex)
 
 common-options:
     -H, --Host hosts-file
@@ -1956,34 +1957,34 @@ attentions:
        # pe ... --comment-sep '!@#' ...
 
 pe is an automation tool based on ssh and Pexpect, it can be used to:
-    1. scp|rsync file|dir(s) from local to remote, or in reverse.
-    2. ssh into host(s)(and execute command(s)).
+    1. scp|rsync local file|dir(s) to remote, or in reverse.
+    2. ssh into host(s) (and execute command|file).
 
-report bug(s) to <https://github.com/ling-zhou/pyexp>.
+report bugs to <https://github.com/ling-zhou/pyexp>.\
 """
     print_exit(help)
 
-def help_help():
+def print_help_help():
     help = """\
-usage: pe help [action]
+usage: pe help [action]\
 """
     print_exit(help)
 
-def help_ssh():
+def print_ssh_help():
     help = """\
-usage: pe ssh [common-options] [-e|--exec exe_file | command]
+usage: pe ssh [common-options] [-e|--exec script_file | command]
 
 use 'pe help' to print help about 'common options'
 
-notice that '-e|--exec exe_file' and 'command' can not be used together.
-if neither '-e|--exec exe_file' nor 'command' is used, then
-    just logins into host(s) specified by '-h|-H'.
+notice that '-e|--exec script_file' and 'command' can not be used together.
+if neither '-e|--exec script_file' nor 'command' is used, then
+    log into host(s) specified by '-H|-h'.
 else
-    logins into host(s) specified by '-h|-H', executes command(s) and exits.
+    log into host(s) specified by '-H|-h', execute command and exit.\
 """
     print_exit(help)
 
-def help_scp():
+def print_scp_help():
     help = """\
 usage: pe scp [-L|--to-local] [common-options] source(s) destination
 
@@ -1992,11 +1993,11 @@ use 'pe help' to print help about 'common options'
 without option '-L|--to-local':
     scp local source(s) to remote destination
 with option '-L|--to-local':
-    scp remote source(s) to local destination
+    scp remote source(s) to local destination\
 """
     print_exit(help)
 
-def help_rsync():
+def print_rsync_help():
     help = """\
 usage: pe rsync [-L|--to-local] [common-options] source(s) destination
 
@@ -2005,16 +2006,60 @@ use 'pe help' to print help about 'common options'
 without option '-L|--to-local':
     rsync local source(s) to remote destination
 with option '-L|--to-local':
-    rsync remote source(s) to local destination
+    rsync remote source(s) to local destination\
 """
     print_exit(help)
+
+def print_examples():
+    examples = """\
+# log into host.
+$ pe -h 'host;user;passwd;port' ssh
+
+# log into host and execute command.
+$ pe -h 'host;user;passwd;port' ssh 'ps -ef | grep python'
+
+# log into host and execute command with debug info printed.
+$ pe -h 'host;user;passwd;port' ssh 'ps -ef | grep python' -d
+
+# log into host and execute a local file.
+$ pe -h 'host;user;passwd;port' ssh -e script_file
+
+# log into hosts one by one, use '<C-d>' to exit current machine and enter next one,
+# use '<C-d><C-c>' to exit the entire process.
+$ pe -H hosts.txt ssh
+
+# log into hosts and execute command in parallel
+$ pe -H hosts.txt ssh 'ps -ef | grep python'
+
+# log into hosts and execute a local file in parallel.
+$ pe -H hosts.txt ssh -e script_file -j 5
+
+# scp local file(s) and dir(s) to remote_dir on hosts in parallel.
+$ pe -H hosts.txt scp local_file1 local_dir2 local_file3 remote_dir -j 8
+
+# scp remote file(s) and dir(s) on hosts to local_dir in parallel.
+$ pe -H hosts.txt scp -L remote_file1 remote_dir2 remote_file3 local_dir
+
+# rsync local file(s) and dir(s) to remote_dir on hosts in parallel.
+$ pe -H hosts.txt rsync local_file1 local_dir2 local_file3 remote_dir -j 8
+
+# rsync remote file(s) and dir(s) on hosts to local_dir in parallel.
+$ pe -H hosts.txt rsync -L remote_file1 remote_dir2 remote_file3 local_dir
+
+# when separators do not meet the requirements, you can specify your own.
+$ cat hosts.txt
+www.abc.com@@user1@@pass1@@22 ^_^ this is host1
+1.2.3.4@@user2@@pass2@@222 ^_^ this is host2
+$ pe -H hosts.txt ssh 'ls -l' --field-sep '@@' --comment-sep '^_^'\
+"""
+    print_exit(examples)
 
 ####################### 大写的全局变量只读，小写的可写 #######################
 # log config(NOTSET DEBUG INFO WARNING ERROR CRITICAL)
 MUTEX = thread.Lock() # lock init
 PROG = os.path.basename(sys.argv[0]) # program name
-PYEXP_PROMPT = r'pe\>\ ' # prompt of diy version
-SET_PROMPT = r'export PS1=' + PYEXP_PROMPT # set diy prompt
+PE_PROMPT = r'pe\>\ ' # prompt of diy version
+SET_PROMPT = r'export PS1=' + PE_PROMPT # set diy prompt
 
 EXP_PATTERNS = [
         EOF, # 0
@@ -2065,7 +2110,7 @@ g_dst = ''
 
 g_ssh_cmd = '' # command for ssh
 g_ssh_cmds = [] # commands for ssh
-g_ssh_exe_file = ''
+g_ssh_script_file = ''
 
 def signal_handler(signum, frame):
     print_red_exit("\nsignal '%s' caught. exiting...", SIGNAL_SET[signum])
@@ -2077,23 +2122,6 @@ def signal_register():
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGUSR1, signal_handler)
     signal.signal(signal.SIGUSR2, signal_handler)
-
-def help_dispatch():
-    try:
-        action = sys.argv[2]
-    except:
-        help_global()
-
-    if action == 'h' or action == 'help':
-        help_help()
-    elif action == 'ssh':
-        help_ssh()
-    elif action == 'scp':
-        help_scp()
-    elif action == 'rs' or action == 'rsync':
-        help_rsync()
-    else:
-        help_global()
 
 def parse_host_line(line): # line-fmt: host[;user[;password[;port]]]
     pair = line.split(g_comment_sep)
@@ -2153,13 +2181,13 @@ def parse_file_line(filename, is_host_file=True):
 
 def parse_args():
     global g_optval_list, g_arg_list, g_optval_dict
-    global g_action, g_debug, g_to_local, g_jobs, g_ssh_exe_file
+    global g_action, g_debug, g_to_local, g_jobs, g_ssh_script_file
     global g_default_user, g_default_pass, g_default_port
     global g_field_sep, g_comment_sep, g_http_proxy
 
     try:
         if len(sys.argv) < 2:
-            help_global()
+            print_global_help()
 
         short_opts = 'dLH:h:u:p:P:j:e:'
         long_opts = ['debug', 'to-local', 'Host=', 'host=', 'user=', 'port=', 'password=',
@@ -2185,9 +2213,9 @@ def parse_args():
             g_jobs = int(g_optval_dict['--jobs'])
 
         if '-e' in g_optval_dict:
-            g_ssh_exe_file = g_optval_dict['-e']
+            g_ssh_script_file = g_optval_dict['-e']
         elif '--exec' in g_optval_dict:
-            g_ssh_exe_file = g_optval_dict['--exec']
+            g_ssh_script_file = g_optval_dict['--exec']
 
         if '-u' in g_optval_dict:
             g_default_user = g_optval_dict['-u']
@@ -2234,10 +2262,12 @@ def set_and_check_action():
         g_action = g_arg_list[0]
         del g_arg_list[0]
 
-        if g_action not in ('h', 'help', 'ssh', 'scp', 'rs', 'rsync'):
+        if g_action not in ('h', 'help', 'ssh', 'scp', 'rs', 'rsync', 'ex', 'example'):
             print_red_exit('action(%s) is invalid', g_action)
         if g_action in ('h', 'help'):
-            help_dispatch()
+            dipatch_help()
+        if g_action in ('ex', 'example'):
+            print_examples()
 
 def config_logger():
     fmt  = '%(asctime)s.%(msecs)03d %(levelname)s '
@@ -2253,20 +2283,20 @@ def config_logger():
 
 def debug_args():
     try:
-        log.debug("g_action: %s" % g_action)
-        log.debug("g_jobs: %s" % g_jobs)
+        log.debug("g_action: %s", g_action)
+        log.debug("g_jobs: %s", g_jobs)
         log.debug("")
-        log.debug("g_optval_list: %s" % g_optval_list)
-        log.debug("g_arg_list: %s" % g_arg_list)
-        log.debug("g_host_units: %r" % g_host_units)
+        log.debug("g_optval_list: %s", g_optval_list)
+        log.debug("g_arg_list: %s", g_arg_list)
+        log.debug("g_host_units: %r", g_host_units)
         log.debug("")
-        log.debug("g_default_user: %r" % g_default_user)
-        log.debug("g_default_pass: %r" % g_default_pass)
+        log.debug("g_default_user: %r", g_default_user)
+        log.debug("g_default_pass: %r", g_default_pass)
         log.debug("g_default_port: %r", g_default_port)
         log.debug("")
         log.debug("g_field_sep: %r", g_field_sep)
-        log.debug("g_comment_sep: %r" % g_comment_sep)
-        log.debug("g_http_proxy: %r" % g_http_proxy)
+        log.debug("g_comment_sep: %r", g_comment_sep)
+        log.debug("g_http_proxy: %r", g_http_proxy)
     except Exception, e:
         print_red_exit("debug_args exception: %s", e)
 
@@ -2314,7 +2344,7 @@ def build_request(host_unit):
         request = """ssh %s %s -p%s -l%s %s '%s'""" % \
                 (SSH_OPTS, proxy_opts, port, user, host, g_ssh_cmd)
 
-    log.debug("request: %s" % request)
+    log.debug("request: %s", request)
     return request
 
 def exec_request(host_unit):
@@ -2354,10 +2384,10 @@ def exec_request(host_unit):
             break
 
         elif index == 1: # TIMEOUT
-            # 有数据过来，认为是正常的响应
             log.debug("%s: timeout exceeded, timeout_cnt=%d, datasize=%d",
                       title, timeout_cnt, len(child.before))
 
+            # 若有数据过来，则认为是正常的响应
             if child.before:
                 break
 
@@ -2411,7 +2441,7 @@ def exec_request(host_unit):
     return (child, is_eof)
 
 # executes ssh, scp, rsync
-def pyexp_exec(host_unit):
+def pe_exec(host_unit):
     try:
         child, is_eof = exec_request(host_unit)
         print_result(host_unit, child, is_eof)
@@ -2419,27 +2449,27 @@ def pyexp_exec(host_unit):
     except (OSError, ExceptionPexpect, Exception), e:
         print_red("%s got exception: %s", host_unit['user'] + '@' + host_unit['host'], e)
 
-def pyexp_ssh():
+def pe_ssh():
     global g_ssh_cmd
 
-    if len(g_arg_list) > 0 and g_ssh_exe_file:
+    if len(g_arg_list) > 0 and g_ssh_script_file:
         print_red_exit("'-e' and 'command' can not be used together!")
 
     if len(g_arg_list) > 0:
         g_ssh_cmd = g_arg_list[0].strip()
-    elif g_ssh_exe_file:
-        parse_file_line(g_ssh_exe_file, False)
+    elif g_ssh_script_file:
+        parse_file_line(g_ssh_script_file, False)
 
     if g_ssh_cmd or len(g_ssh_cmds) > 0:
         log.debug("g_ssh_cmd: %r", g_ssh_cmd)
         log.debug("g_ssh_cmds: %r", g_ssh_cmds)
 
-        exec_in_threads(pyexp_exec)
+        exec_in_threads(pe_exec)
     else:
-        pyexp_login()
+        pe_login()
 
 # logins only
-def pyexp_login():
+def pe_login():
     for host_unit in g_host_units:
         try:
             child, _ = exec_request(host_unit)
@@ -2456,12 +2486,12 @@ def pyexp_login():
         except (ExceptionPexpect, Exception), e:
             print_red("%s got exception: %s", host_unit['user'] + '@' + host_unit['host'], e)
 
-def pyexp_remote_copy():
+def pe_remote_copy():
     global g_arg_list, g_src, g_dst
 
     arg_num = len(g_arg_list)
     if arg_num < 2:
-        print_red_exit("source and destination are both needed!")
+        print_red_exit("source(s) and destination are both needed!")
 
     if g_to_local and arg_num != 2:
         print_red_exit("can copy only ONE source from remote to local!")
@@ -2470,22 +2500,22 @@ def pyexp_remote_copy():
     g_dst = g_arg_list[arg_num - 1]
 
     debug_remote_copy()
-    exec_in_threads(pyexp_exec)
+    exec_in_threads(pe_exec)
 
-def pyexp_scp():
+def pe_scp():
     global g_copy_bin # 对全局变量进行写操作之前需要用global声明，读操作不需要
     g_copy_bin = 'scp'
-    pyexp_remote_copy()
+    pe_remote_copy()
 
-def pyexp_rsync():
+def pe_rsync():
     global g_copy_bin # 对全局变量进行写操作之前需要用global声明，读操作不需要
     g_copy_bin = 'rsync'
-    pyexp_remote_copy()
+    pe_remote_copy()
 
 def result_slice(result):
     try:
-        begin = result.rindex(PYEXP_PROMPT) + len(PYEXP_PROMPT)
-        end = result.rindex('exit') - len(PYEXP_PROMPT)
+        begin = result.rindex(PE_PROMPT) + len(PE_PROMPT)
+        end = result.rindex('exit') - len(PE_PROMPT)
         return result[begin:end].strip()
     except:
         return result.strip()
@@ -2515,7 +2545,7 @@ def print_result(host_unit, child, is_eof = False):
     if not got_data:
         MUTEX.acquire()    # 加锁，防止多线程数据打印错乱
         print(get_host_prompt(host_unit))
-        print_red('!!! got nothing !!!\n')
+        print_red('!!! something is wrong !!!\n')
         MUTEX.release()
 
 def get_host_prompt(host_unit):
@@ -2532,7 +2562,7 @@ def get_host_prompt(host_unit):
 
     return '*'.ljust(left, '*') + ' ' + render_green(title) + ' ' + '*'.ljust(right, '*')
 
-class pyexp_thread(thread.Thread):
+class pe_thread(thread.Thread):
     def __init__(self, func, args):
         thread.Thread.__init__(self)
         self.name = func.__name__
@@ -2556,7 +2586,7 @@ def exec_in_threads(func):
         threads = []
 
         for host_unit in host_units:
-            t = pyexp_thread(func, (host_unit,))
+            t = pe_thread(func, (host_unit,))
             t.setDaemon(True)
             t.start()
 
@@ -2575,6 +2605,23 @@ def exec_in_threads(func):
 
             time.sleep(0.01) # 避免忙等
 
+def dipatch_help():
+    try:
+        action = sys.argv[2]
+    except:
+        print_global_help()
+
+    if action == 'ssh':
+        print_ssh_help()
+    elif action == 'scp':
+        print_scp_help()
+    elif action == 'rs' or action == 'rsync':
+        print_rsync_help()
+    elif action == 'h' or action == 'help':
+        print_help_help()
+    else:
+        print_global_help()
+
 def main():
     signal_register()
     parse_args()
@@ -2584,13 +2631,13 @@ def main():
               import_start, import_end), time_diff_msec(import_start, time_now))
 
     if g_action == 'ssh':
-        pyexp_ssh()
+        pe_ssh()
     elif g_action == 'scp':
-        pyexp_scp()
+        pe_scp()
     elif g_action == 'rs' or g_action == 'rsync':
-        pyexp_rsync()
+        pe_rsync()
     else:
-        help_global()
+        print_global_help()
 
 if __name__ == '__main__':
     try:
