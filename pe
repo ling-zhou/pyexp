@@ -1947,13 +1947,13 @@ attentions:
     3. password specified by '-p' can be overridden by PASSWORD in 'host;user;PASSWORD;port'.
     4. port specified by '-P' can be overridden by PORT in 'host;user;password;PORT'.
     5. field-separator is needed if the member in between is not specified,
-       for example: host::password
+       for example: host;;password
             in this case, default user will be used, and default user can be overridden by -u.
     6. user defined single-line-field-separator must be specified if password contains ';'.
-       for example: '1.2.3.4_@_root_@_my:/passwd_@_22 // this is comment'
+       for example: '1.2.3.4_@_root_@_my;/passwd_@_22 // this is comment'
        # pe ... --field-sep '_@_' ...
-    7. user defined single-line-comment-separator must be specified if PASSWORD contains '//'.
-       for example: '1.2.3.4:root:my//passwd:22 !@# this is comment'
+    7. user defined single-line-comment-separator must be specified if password contains '//'.
+       for example: '1.2.3.4;root;my//passwd;22 !@# this is comment'
        # pe ... --comment-sep '!@#' ...
 
 pe is an automation tool based on ssh and Pexpect, it can be used to:
