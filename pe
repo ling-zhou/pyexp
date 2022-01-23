@@ -1857,9 +1857,9 @@ def split_command_line(command_line):
 
 
 # ==============================================================================
-# @author Zhou Ling(周龄) <zhou.0@foxmail.com>
+# @author ZHOU Ling(周龄) <zhou.0@foxmail.com>
 # @brief an automation tool based on ssh and Pexpect.
-# @copyright Zhou Ling(周龄) <zhou.0@foxmail.com>
+# @copyright ZHOU Ling(周龄) <zhou.0@foxmail.com>
 
 try:
     import getopt, commands
@@ -1932,8 +1932,10 @@ common-options:
         optional, defaults to '22'.
     -d, --debug
         optional, prints debug info.
+    -s, --select
+        optional, select one host which will take effect, the others will be ignored.
     -j, --jobs N
-        optional, runs up to N jobs concurrently in threads, defaults to 8.
+        optional, runs up to N jobs in parallel in threads, defaults to 8.
     --field-sep single-line-field-separator
         optional, defaults to ';'.
     --comment-sep single-line-comment-separator
@@ -2015,10 +2017,10 @@ def print_examples():
 # log into host.
 $ pe -h 'host;user;passwd;port' ssh
 
-# log into host and execute command.
+# log into host and execute a command.
 $ pe -h 'host;user;passwd;port' ssh 'ps -ef | grep python'
 
-# log into host and execute command with debug info printed.
+# log into host and execute a command with debug info printed.
 $ pe -h 'host;user;passwd;port' ssh 'ps -ef | grep python' -d
 
 # log into host and execute a local file.
@@ -2028,8 +2030,14 @@ $ pe -h 'host;user;passwd;port' ssh -e script_file
 # use '<C-d><C-c>' to exit the entire process.
 $ pe -H hosts.txt ssh
 
-# log into hosts and execute command in parallel
+# log into the selected host.
+$ pe -H hosts.txt ssh -s
+
+# log into hosts and execute a command in parallel.
 $ pe -H hosts.txt ssh 'ps -ef | grep python'
+
+# log into the selected host and execute a command.
+$ pe -H hosts.txt ssh 'ps -ef | grep python' -s
 
 # log into hosts and execute a local file in parallel.
 $ pe -H hosts.txt ssh -e script_file -j 5
@@ -2050,7 +2058,7 @@ $ pe -H hosts.txt rsync -L remote_file1 remote_dir2 remote_file3 local_dir
 $ cat hosts.txt
 www.abc.com@@user1@@pass1@@22 ^_^ this is host1
 1.2.3.4@@user2@@pass2@@222 ^_^ this is host2
-$ pe -H hosts.txt ssh 'ls -l' --field-sep '@@' --comment-sep '^_^'\
+$ pe -H hosts.txt ssh 'ls -l' --field-sep '@@' --comment-sep '^_^'
 """
     print_exit(examples)
 
@@ -2108,6 +2116,8 @@ g_copy_bin = ''
 g_src = ''
 g_dst = ''
 
+g_selected_host_index = -1
+
 g_ssh_cmd = '' # command for ssh
 g_ssh_cmds = [] # commands for ssh
 g_ssh_script_file = ''
@@ -2160,9 +2170,9 @@ def parse_host_line(line): # line-fmt: host[;user[;password[;port]]]
 
     global g_host_units
     g_host_units.append(
-            {'host': host_unit[0], 'user': host_unit[1], 'password': host_unit[2],
-                'port': host_unit[3], 'comment': comment}
-            )
+        {'host': host_unit[0], 'user': host_unit[1], 'password': host_unit[2],
+         'port': host_unit[3], 'comment': comment}
+    )
 
 def parse_file_line(filename, is_host_file=True):
     try:
@@ -2189,8 +2199,8 @@ def parse_args():
         if len(sys.argv) < 2:
             print_global_help()
 
-        short_opts = 'dLH:h:u:p:P:j:e:'
-        long_opts = ['debug', 'to-local', 'Host=', 'host=', 'user=', 'port=', 'password=',
+        short_opts = 'dsLH:h:u:p:P:j:e:'
+        long_opts = ['debug', 'select', 'to-local', 'Host=', 'host=', 'user=', 'port=', 'password=',
                      'jobs=', 'exec=', 'field-sep=', 'comment-sep=', 'proxy=']
 
         g_optval_list, g_arg_list = getopt.gnu_getopt(sys.argv[1:], short_opts, long_opts)
@@ -2250,8 +2260,46 @@ def parse_args():
 
         config_logger()
         debug_args()
+
+        if '-s' in g_optval_dict or '--select' in g_optval_dict:
+            select_host()
     except Exception, e:
         print_red_exit("%s", e)
+
+def select_host():
+    for index, host_unit in enumerate(g_host_units):
+        print('#%d: %s@%s  // %s' % (index, host_unit['user'], host_unit['host'],
+              host_unit['comment']))
+
+    sys.stdout.write('\nenter host index: ')
+
+    try:
+        host_index = int(raw_input())
+    except Exception, e:
+        print_red_exit('%s', e)
+    finally:
+        host_num = len(g_host_units)
+        if host_index < 0 or host_index >= host_num:
+            print_red_exit('!!!!! error: host index should be in range[0, %d) !!!!!', host_num)
+
+        global g_selected_host_index
+        g_selected_host_index = host_index
+
+    print('')
+
+def get_host_prompt(host_unit):
+    title = host_unit['user'] + "@" + host_unit['host']
+    titlelen = len(title) + 2
+
+    try:
+        ncols = int(commands.getoutput('stty size').split()[1])
+    except:
+        ncols = 100
+
+    left = (ncols - titlelen) / 2
+    right = ncols - titlelen - left
+
+    return '*'.ljust(left, '*') + ' ' + render_green(title) + ' ' + '*'.ljust(right, '*')
 
 def set_and_check_action():
     global g_action, g_arg_list
@@ -2468,10 +2516,16 @@ def pe_ssh():
     else:
         pe_login()
 
+def filter_host(host_index):
+    return g_selected_host_index >= 0 and g_selected_host_index != host_index
+
 # logins only
 def pe_login():
-    for host_unit in g_host_units:
+    for host_index, host_unit in enumerate(g_host_units):
         try:
+            if filter_host(host_index):
+                continue
+
             child, _ = exec_request(host_unit)
 
             print(get_host_prompt(host_unit))
@@ -2548,20 +2602,6 @@ def print_result(host_unit, child, is_eof = False):
         print_red('!!! something is wrong !!!\n')
         MUTEX.release()
 
-def get_host_prompt(host_unit):
-    title = host_unit['user'] + "@" + host_unit['host']
-    titlelen = len(title) + 2
-
-    try:
-        ncols = int(commands.getoutput('stty size').split()[1])
-    except:
-        ncols = 80
-
-    left = (ncols - titlelen) / 2
-    right = ncols - titlelen - left
-
-    return '*'.ljust(left, '*') + ' ' + render_green(title) + ' ' + '*'.ljust(right, '*')
-
 class pe_thread(thread.Thread):
     def __init__(self, func, args):
         thread.Thread.__init__(self)
@@ -2573,16 +2613,18 @@ class pe_thread(thread.Thread):
         apply(self.func, self.args)
 
 def exec_in_threads(func):
-    index = 0
+    host_index = 0
+    host_num = len(g_host_units)
+    host_units = []
 
-    while True:
-        host_units = g_host_units[index : index + g_jobs]
-        thread_num = len(host_units)
+    while host_index < host_num:
+        if not filter_host(host_index):
+            host_units.append(g_host_units[host_index])
 
-        if thread_num == 0:
-            break
+        host_index += 1
+        if len(host_units) < g_jobs and host_index != host_num:
+            continue;
 
-        index += g_jobs
         threads = []
 
         for host_unit in host_units:
@@ -2595,15 +2637,15 @@ def exec_in_threads(func):
         while True:
             alive = False
 
-            # for i in range(thread_num):
-            #     threads[i].join() # 导致ctrl-c等信号被阻塞
-            for i in range(thread_num):
+            for i in range(len(threads)):
                 alive = alive or threads[i].isAlive()
 
             if not alive:
                 break
 
             time.sleep(0.01) # 避免忙等
+
+        host_units = []
 
 def dipatch_help():
     try:

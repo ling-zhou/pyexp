@@ -1,5 +1,5 @@
 pe(Python Expect)
-=====
+======
 ```
 $ pe
 usage: pe <action> [options] [command] [args]
@@ -26,8 +26,10 @@ common-options:
         optional, defaults to '22'.
     -d, --debug
         optional, prints debug info.
+    -s, --select
+        optional, select one host which will take effect, the others will be ignored.
     -j, --jobs N
-        optional, runs up to N jobs concurrently in threads, defaults to 8.
+        optional, runs up to N jobs in parallel in threads, defaults to 8.
     --field-sep single-line-field-separator
         optional, defaults to ';'.
     --comment-sep single-line-comment-separator
@@ -62,10 +64,10 @@ $ pe example
 # log into host.
 $ pe -h 'host;user;passwd;port' ssh
 
-# log into host and execute command.
+# log into host and execute a command.
 $ pe -h 'host;user;passwd;port' ssh 'ps -ef | grep python'
 
-# log into host and execute command with debug info printed.
+# log into host and execute a command with debug info printed.
 $ pe -h 'host;user;passwd;port' ssh 'ps -ef | grep python' -d
 
 # log into host and execute a local file.
@@ -75,8 +77,14 @@ $ pe -h 'host;user;passwd;port' ssh -e script_file
 # use '<C-d><C-c>' to exit the entire process.
 $ pe -H hosts.txt ssh
 
-# log into hosts and execute command in parallel
+# log into the selected host.
+$ pe -H hosts.txt ssh -s
+
+# log into hosts and execute a command in parallel.
 $ pe -H hosts.txt ssh 'ps -ef | grep python'
+
+# log into the selected host and execute a command.
+$ pe -H hosts.txt ssh 'ps -ef | grep python' -s
 
 # log into hosts and execute a local file in parallel.
 $ pe -H hosts.txt ssh -e script_file -j 5
